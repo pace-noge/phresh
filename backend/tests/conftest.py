@@ -1,19 +1,19 @@
-import warnings
 import os
-
-import pytest
-import pytest_asyncio
-from asgi_lifespan import LifespanManager
-
-from fastapi import FastAPI
-from httpx import AsyncClient
-from databases import Database
+import warnings
 
 import alembic
+import pytest
+import pytest_asyncio
 from alembic.config import Config
+from asgi_lifespan import LifespanManager
+from databases import Database
+from fastapi import FastAPI
+from httpx import AsyncClient
 
 from app.db.repositories.cleanings import CleaningsRepository
+from app.db.repositories.users import UsersRepository
 from app.models.cleaning import CleaningInDB, CleaningCreate
+from app.models.user import UserInDB, UserCreate
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -59,3 +59,20 @@ async def test_cleaning(db: Database) -> CleaningInDB:
         cleaning_type="spot_clean"
     )
     return await cleaning_repo.create_cleaning(new_cleaning=new_cleaning)
+
+
+@pytest.fixture
+async def test_user(db: Database) -> UserInDB:
+    new_user = UserCreate(
+        email="lebron@james.io",
+        username="lebronjames",
+        password="password123"
+    )
+
+    user_repo = UsersRepository(db)
+
+    existing_user = await user_repo.get_user_by_email(email=new_user.email)
+    if existing_user:
+        return existing_user
+    return await user_repo.register_new_user(new_user=new_user)
+

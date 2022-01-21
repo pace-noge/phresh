@@ -1,7 +1,11 @@
 import bcrypt
+import jwt
 from passlib.context import CryptContext
+from datetime import datetime, timedelta
 
-from app.models.user import UserPasswordUpdate
+from app.core.config import SECRET_KEY, JWT_AUDIENCE, ACCESS_TOKEN_EXPIRE_MINUTES, JWT_ALGORITHM
+from app.models.token import JWTMeta, JWTCreds, JWTPayload
+from app.models.user import UserPasswordUpdate, UserInDB
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -31,3 +35,26 @@ class AuthService:
     @staticmethod
     def verify_password(*, password: str, salt: str, hashed_pw: str) -> bool:
         return pwd_context.verify(password+salt, hashed_pw)
+
+    @staticmethod
+    def create_access_token_for_user(
+            *,
+            user: UserInDB,
+            secret_key: str = str(SECRET_KEY),
+            audience: str = JWT_AUDIENCE,
+            expires_in: int = ACCESS_TOKEN_EXPIRE_MINUTES
+    ) -> str:
+        if not user or not isinstance(user, UserInDB):
+            return None
+        jwt_meta = JWTMeta(
+            aud=audience,
+            iat=datetime.timestamp(datetime.utcnow()),
+            exp=datetime.timestamp(datetime.utcnow() + timedelta(minutes=expires_in))
+        )
+        jwt_creds = JWTCreds(sub=user.email, username=user.username)
+        token_payload = JWTPayload(
+            **jwt_meta.dict(),
+            **jwt_creds.dict()
+        )
+        access_token = jwt.encode(token_payload.dict(), secret_key, algorithm=JWT_ALGORITHM)
+        return access_token
