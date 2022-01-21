@@ -14,6 +14,7 @@ from starlette.status import (
 )
 from app.models.user import UserCreate, UserInDB
 from app.db.repositories.users import UsersRepository
+from app.services import auth_service
 
 
 pytesmark = pytest.mark.asyncio
@@ -36,7 +37,7 @@ class TestUserRegistration:
         user_repo = UsersRepository(db)
         new_user = {
             "email": "bilalbilal@mail.io",
-            "username": "bilal24",
+            "username": "bilal2408",
             "password": "password123"
         }
         user_in_db = await user_repo.get_user_by_email(email=new_user["email"])
@@ -45,7 +46,7 @@ class TestUserRegistration:
         res = await client.post(app.url_path_for("users:register-new-user"), json=new_user)
         assert res.status_code == HTTP_201_CREATED
 
-        user_in_db =   await user_repo.get_user_by_email(email=new_user["email"])
+        user_in_db = await user_repo.get_user_by_email(email=new_user["email"])
         assert user_in_db is not None
         assert user_in_db.email == new_user["email"]
         assert user_in_db.username == new_user["username"]
@@ -58,7 +59,7 @@ class TestUserRegistration:
         "attr, value, status_code",
         (
                 ("email", "bilalbilal@mail.io", 400),
-                ("username", "bilal24", 400),
+                ("username", "bilal2408", 400),
                 ("email", "invalid.email@one@two.io", 422),
                 ("password", "short", 422),
                 ("username", "shakira@#$%^<>", 422),
@@ -79,3 +80,26 @@ class TestUserRegistration:
 
         res = await client.post(app.url_path_for("users:register-new-user"), json=new_user)
         assert res.status_code == status_code
+
+    async def test_user_saved_password_is_hashed_and_has_salt(
+            self,
+            app: FastAPI,
+            client: AsyncClient,
+            db: Database
+    ) -> None:
+        user_repo = UsersRepository(db)
+        new_user = {"email": "beyonce@knowles.io", "username": "queenbey", "password": "destinyschild"}
+
+        res = await client.post(app.url_path_for("users:register-new-user"), json=new_user)
+        assert res.status_code == HTTP_201_CREATED
+
+        user_in_db = await user_repo.get_user_by_email(email=new_user["email"])
+        assert user_in_db is not None
+        assert user_in_db.salt is not None and user_in_db.salt != "123"
+        assert user_in_db.password != new_user["password"]
+        assert auth_service.verify_password(
+            password=new_user["password"],
+            salt=user_in_db.salt,
+            hashed_pw=user_in_db.password
+        )
+

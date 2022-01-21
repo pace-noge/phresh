@@ -9,6 +9,10 @@ SQLAlchemy==1.4.29
 alembic==1.7.5
 psycopg2==2.9.3
 
+# auth
+pyjwt==2.3.0
+passlib[bcrypt]==1.7.4
+
 # dev
 pytest==6.2.5
 pytest-asyncio==0.17.2
