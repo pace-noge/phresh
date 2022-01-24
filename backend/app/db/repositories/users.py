@@ -80,10 +80,12 @@ class UsersRepository(BaseRepository):
             return None
         return user
 
-    async def populate_user(self, * , user: UserInDB) -> UserPublic:
-        return UserPublic(
+    async def populate_user(self, *, user: UserInDB) -> UserPublic:
+        profile = await self.profiles_repo.get_profile_by_user_id(user_id=user.id)
+        user_with_profile = UserPublic(
             **user.dict(),
-            profile = await self.profiles_repo.get_profile_by_user_id(user_id=user.id)
+            profile=profile
         )
+        return user_with_profile
 
 

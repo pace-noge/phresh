@@ -13,7 +13,7 @@ from httpx import AsyncClient
 from app.core.config import SECRET_KEY, JWT_TOKEN_PREFIX
 from app.db.repositories.cleanings import CleaningsRepository
 from app.db.repositories.users import UsersRepository
-from app.models.cleaning import CleaningInDB, CleaningCreate
+from app.models.cleaning import CleaningInDB, CleaningCreate, CleaningPublic
 from app.models.user import UserInDB, UserCreate, UserPublic
 from app.services import auth_service
 
@@ -52,18 +52,6 @@ async def client(app: FastAPI) -> AsyncClient:
 
 
 @pytest.fixture
-async def test_cleaning(db: Database) -> CleaningInDB:
-    cleaning_repo = CleaningsRepository(db)
-    new_cleaning = CleaningCreate(
-        name="fake cleaning name",
-        description="fake cleaning description",
-        price=9.99,
-        cleaning_type="spot_clean"
-    )
-    return await cleaning_repo.create_cleaning(new_cleaning=new_cleaning)
-
-
-@pytest.fixture
 async def test_user(db: Database) -> UserPublic:
     new_user = UserCreate(
         email="lebron@james.io",
@@ -76,7 +64,20 @@ async def test_user(db: Database) -> UserPublic:
     existing_user = await user_repo.get_user_by_email(email=new_user.email, populate=True)
     if existing_user:
         return existing_user
-    return await user_repo.register_new_user(new_user=new_user)
+    newly_created = await user_repo.register_new_user(new_user=new_user)
+    return newly_created
+
+
+@pytest.fixture
+async def test_cleaning(db: Database, test_user: UserPublic) -> CleaningPublic:
+    cleaning_repo = CleaningsRepository(db)
+    new_cleaning = CleaningCreate(
+        name="fake cleaning name",
+        description="fake cleaning description",
+        price=9.99,
+        cleaning_type="spot_clean"
+    )
+    return await cleaning_repo.create_cleaning(new_cleaning=new_cleaning, requesting_user=test_user)
 
 
 @pytest.fixture

@@ -5,22 +5,23 @@ from app.db.repositories.base import BaseRepository
 from app.models.cleaning import CleaningCreate, CleaningUpdate, CleaningInDB, CleaningPublic
 from typing import List
 
+from app.models.user import UserInDB
 
 CREATE_CLEANING_QUERY = """
-    INSERT INTO cleanings (name, description, price, cleaning_type)
-    VALUES (:name, :description, :price, :cleaning_type)
-    RETURNING id, name, description, price, cleaning_type;
+    INSERT INTO cleanings (name, description, price, cleaning_type, owner)
+    VALUES (:name, :description, :price, :cleaning_type, :owner)
+    RETURNING id, name, description, price, cleaning_type, owner, created_at, updated_at;
 """
 
 GET_CLEANING_BY_ID_QUERY = """
-    SELECT id, name, description, price, cleaning_type
+    SELECT id, name, description, price, cleaning_type, owner
     FROM cleanings
     WHERE id = :id;
 """
 
 
 GET_ALL_CLEANING_QUERY = """
-    SELECT id, name, description, price, cleaning_type  
+    SELECT id, name, description, price, cleaning_type, owner
     FROM cleanings;
 """
 
@@ -29,9 +30,10 @@ UPDATE_CLEANING_BY_ID_QUERY = """
     SET name            = :name,
         description     = :description,
         price           = :price,
-        cleaning_type   = :cleaning_type
+        cleaning_type   = :cleaning_type,
+        owner = :owner
     WHERE id = :id
-    RETURNING id, name, description, price, cleaning_type;
+    RETURNING id, name, description, price, cleaning_type, owner;
 """
 
 DELETE_CLEANING_BY_ID_QUERY = """
@@ -42,9 +44,10 @@ DELETE_CLEANING_BY_ID_QUERY = """
 
 
 class CleaningsRepository(BaseRepository):
-    async def create_cleaning(self, *, new_cleaning: CleaningCreate) -> CleaningPublic:
-        query_values = new_cleaning.dict()
-        cleaning = await self.db.fetch_one(query=CREATE_CLEANING_QUERY, values=query_values)
+    async def create_cleaning(self, *, new_cleaning: CleaningCreate, requesting_user: UserInDB) -> CleaningPublic:
+        cleaning = await self.db.fetch_one(
+            query=CREATE_CLEANING_QUERY, values={**new_cleaning.dict(), "owner": requesting_user.id}
+        )
         return CleaningPublic(**cleaning)
 
     async def get_cleaning_by_id(self, *, id: int) -> CleaningInDB:
