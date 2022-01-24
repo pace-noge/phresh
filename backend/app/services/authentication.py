@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Type
 
 import bcrypt
 import jwt
@@ -11,7 +11,7 @@ from starlette import status
 
 from app.core.config import SECRET_KEY, JWT_AUDIENCE, ACCESS_TOKEN_EXPIRE_MINUTES, JWT_ALGORITHM
 from app.models.token import JWTMeta, JWTCreds, JWTPayload
-from app.models.user import UserPasswordUpdate, UserInDB
+from app.models.user import UserPasswordUpdate, UserInDB, UserBase
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -45,12 +45,12 @@ class AuthService:
     @staticmethod
     def create_access_token_for_user(
             *,
-            user: UserInDB,
+            user: Type[UserBase],
             secret_key: str = str(SECRET_KEY),
             audience: str = JWT_AUDIENCE,
             expires_in: int = ACCESS_TOKEN_EXPIRE_MINUTES
     ) -> str:
-        if not user or not isinstance(user, UserInDB):
+        if not user or not isinstance(user, UserBase):
             return None
         jwt_meta = JWTMeta(
             aud=audience,

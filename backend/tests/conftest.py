@@ -14,7 +14,7 @@ from app.core.config import SECRET_KEY, JWT_TOKEN_PREFIX
 from app.db.repositories.cleanings import CleaningsRepository
 from app.db.repositories.users import UsersRepository
 from app.models.cleaning import CleaningInDB, CleaningCreate
-from app.models.user import UserInDB, UserCreate
+from app.models.user import UserInDB, UserCreate, UserPublic
 from app.services import auth_service
 
 
@@ -64,7 +64,7 @@ async def test_cleaning(db: Database) -> CleaningInDB:
 
 
 @pytest.fixture
-async def test_user(db: Database) -> UserInDB:
+async def test_user(db: Database) -> UserPublic:
     new_user = UserCreate(
         email="lebron@james.io",
         username="lebronjames",
@@ -73,7 +73,7 @@ async def test_user(db: Database) -> UserInDB:
 
     user_repo = UsersRepository(db)
 
-    existing_user = await user_repo.get_user_by_email(email=new_user.email)
+    existing_user = await user_repo.get_user_by_email(email=new_user.email, populate=True)
     if existing_user:
         return existing_user
     return await user_repo.register_new_user(new_user=new_user)
@@ -97,7 +97,7 @@ async def test_user2(db: Database) -> UserInDB:
         password="tennistwins",
     )
     user_repo = UsersRepository(db)
-    existings_user = await user_repo.get_user_by_email(email=new_user.email)
+    existings_user = await user_repo.get_user_by_email(email=new_user.email, populate=True)
     if existings_user:
         return existings_user
     return await user_repo.register_new_user(new_user=new_user)
