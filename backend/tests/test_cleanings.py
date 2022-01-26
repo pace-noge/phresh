@@ -40,24 +40,23 @@ async def test_cleaning_list(db: Database, test_user2: UserInDB) -> List[Cleanin
         for i in range(5)
     ]
 
-class TestCleaningRoutes:
-    @pytest.mark.asyncio
-    async def test_route_exists(self, app: FastAPI, client: AsyncClient) -> None:
-        res = await client.post(app.url_path_for("cleanings:create-cleaning"), json={})
-        assert res.status_code != HTTP_404_NOT_FOUND
 
-    @pytest.mark.asyncio
-    async def test_invalid_input_raises_error(self, app: FastAPI, authorized_client: AsyncClient) -> None:
-        res = await authorized_client.post(app.url_path_for("cleanings:create-cleaning"), json={})
-        assert res.status_code == HTTP_422_UNPROCESSABLE_ENTITY
-        res = await authorized_client.get(app.url_path_for("cleanings:get-cleaning-by-id", cleaning_id="1"))
-        assert res.status_code != HTTP_404_NOT_FOUND
-        res = await authorized_client.get(app.url_path_for("cleanings:list-all-user-cleanings"))
-        assert res.status_code != HTTP_404_NOT_FOUND
-        res = await authorized_client.put(app.url_path_for("cleanings:update-cleaning-by-id", cleaning_id="1"))
-        assert res.status_code != HTTP_404_NOT_FOUND
-        res = await authorized_client.delete(app.url_path_for("cleanings:delete-cleaning-by-id", cleaning_id="0"))
-        assert res.status_code != HTTP_404_NOT_FOUND
+class TestCleaningsRoutes:
+    """
+    Check each cleaning route to ensure none return 404s
+    """
+
+    async def test_routes_exist(self, app: FastAPI, client: AsyncClient) -> None:
+        res = await client.post(app.url_path_for("cleanings:create-cleaning"), json={})
+        assert res.status_code != status.HTTP_404_NOT_FOUND
+        res = await client.get(app.url_path_for("cleanings:get-cleaning-by-id", cleaning_id=1))
+        assert res.status_code != status.HTTP_404_NOT_FOUND
+        res = await client.get(app.url_path_for("cleanings:list-all-user-cleanings"))
+        assert res.status_code != status.HTTP_404_NOT_FOUND
+        res = await client.put(app.url_path_for("cleanings:update-cleaning-by-id", cleaning_id=1))
+        assert res.status_code != status.HTTP_404_NOT_FOUND
+        res = await client.delete(app.url_path_for("cleanings:delete-cleaning-by-id", cleaning_id=0))
+        assert res.status_code != status.HTTP_404_NOT_FOUND
 
 
 class TestCreateCleaning:
@@ -117,7 +116,7 @@ class TestGetCleaning:
             test_cleaning: CleaningPublic
     ) -> None:
         print("Test Cleaning:", test_cleaning)
-        res = await authorized_client.get(app.url_path_for("cleanings:get-cleaning-by-id", id=test_cleaning.id))
+        res = await authorized_client.get(app.url_path_for("cleanings:get-cleaning-by-id", cleaning_id=test_cleaning.id))
         assert res.status_code == HTTP_200_OK
         cleaning = CleaningInDB(**res.json())
         assert cleaning == test_cleaning
@@ -131,20 +130,20 @@ class TestGetCleaning:
     @pytest.mark.parametrize(
         "id, status_code",
         (
-                (500, 404),
-                (-1, 404),
+                (50000, 404),
+                (-1, 422),
                 (None, 422)
         ),
     )
     async def test_wrong_id_returns_error(self, app: FastAPI, authorized_client: AsyncClient, id: int, status_code: int) -> None:
-        res = await authorized_client.get(app.url_path_for("cleanings:get-cleaning-by-id", id=id))
+        res = await authorized_client.get(app.url_path_for("cleanings:get-cleaning-by-id", cleaning_id=id))
         assert res.status_code == status_code
 
     async def test_get_all_cleanings_returns_only_user_owned_cleanings(
             self, app: FastAPI, authorized_client: AsyncClient, test_user: UserInDB, db: Database,
             test_cleaning: CleaningInDB, test_cleaning_list: List[CleaningInDB]
     ) -> None:
-        res = await authorized_client.get(app.url_path_for("cleanings:list-all-user-cleaings"))
+        res = await authorized_client.get(app.url_path_for("cleanings:list-all-user-cleanings"))
         assert res.status_code == HTTP_200_OK
         assert isinstance(res.json(), list)
         assert len(res.json()) > 0
@@ -182,7 +181,7 @@ class TestUpdateCleaning:
             values: List[str]
     ) -> None:
         cleaning_update = {attrs_to_change[i]: values[i] for i in range(len(attrs_to_change))}
-        res = await authorized_client.put(app.url_path_for("cleanings:update-cleaning-by-id", id=test_cleaning.id), json=cleaning_update)
+        res = await authorized_client.put(app.url_path_for("cleanings:update-cleaning-by-id", cleaning_id=test_cleaning.id), json=cleaning_update)
         assert res.status_code == HTTP_200_OK
         update_cleaning = CleaningInDB(**res.json())
         for i in range(len(attrs_to_change)):
@@ -208,13 +207,13 @@ class TestUpdateCleaning:
     async def test_update_cleaning_with_invalid_input_throws_error(
             self,
             app: FastAPI,
-            client: AsyncClient,
+            authorized_client: AsyncClient,
             test_cleaning: CleaningInDB,
             id: int,
             payload: dict,
             status_code: int
     ) -> None:
-        res = await client.put(app.url_path_for("cleanings:update-cleaning-by-id", id=id), json=payload)
+        res = await authorized_client.put(app.url_path_for("cleanings:update-cleaning-by-id", cleaning_id=id), json=payload)
         assert res.status_code == status_code
 
 
@@ -228,14 +227,14 @@ class TestDeleteCleaning:
         res = await authorized_client.delete(
             app.url_path_for(
                 "cleanings:delete-cleaning-by-id",
-                id=str(test_cleaning.id),
+                cleaning_id=str(test_cleaning.id),
             ),
         )
-        assert res.status_code == HTTP_204_NO_CONTENT
+        assert res.status_code == HTTP_200_OK
         res = await authorized_client.get(
             app.url_path_for(
                 "cleanings:delete-cleaning-by-id",
-                id=str(test_cleaning.id),
+                cleaning_id=str(test_cleaning.id),
             )
         )
         assert res.status_code == HTTP_404_NOT_FOUND
@@ -252,12 +251,12 @@ class TestDeleteCleaning:
     async def test_delete_cleaning_with_invalid_input_throws_error(
             self,
             app: FastAPI,
-            client: AsyncClient,
+            authorized_client: AsyncClient,
             test_cleaning: CleaningInDB,
             id: int,
             status_code: int
     ) -> None:
-        res = await client.delete(
-            app.url_path_for("cleanings:delete-cleaning-by-id", id=id)
+        res = await authorized_client.delete(
+            app.url_path_for("cleanings:delete-cleaning-by-id", cleaning_id=id)
         )
         assert res.status_code == status_code
