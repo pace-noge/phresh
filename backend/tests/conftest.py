@@ -16,7 +16,7 @@ from app.db.repositories.cleanings import CleaningsRepository
 from app.db.repositories.offers import OffersRepository
 from app.db.repositories.users import UsersRepository
 from app.models.cleaning import CleaningInDB, CleaningCreate, CleaningPublic
-from app.models.offer import OfferCreate
+from app.models.offer import OfferCreate, OfferUpdate
 from app.models.user import UserInDB, UserCreate, UserPublic
 from app.services import auth_service
 
@@ -172,3 +172,40 @@ async def test_user2(db: Database) -> UserInDB:
     return await user_repo.register_new_user(new_user=new_user)
 
 
+@pytest.fixture
+async def test_cleaning_with_offers(db: Database, test_user2: UserInDB, test_user_list: List[UserInDB]) -> CleaningInDB:
+    cleaning_repo = CleaningsRepository(db)
+    offers_repo = OffersRepository(db)
+
+    new_cleaning = CleaningCreate(
+        name="cleaning with offers", description="desc for cleaning", price=9.99, cleaning_type="full_clean"
+    )
+    created_cleaning = await cleaning_repo.create_cleaning(new_cleaning=new_cleaning, requesting_user=test_user2)
+    for user in test_user_list:
+        await offers_repo.create_offer_for_cleaning(
+            new_offer=OfferCreate(cleaning_id=created_cleaning.id, user_id=user.id)
+        )
+    return created_cleaning
+
+
+@pytest.fixture
+async def test_cleaning_with_accepted_offer(
+        db: Database, test_user2: UserInDB, test_user3: UserInDB, test_user_list: List[UserInDB]
+) -> CleaningInDB:
+    cleaning_repo = CleaningsRepository(db)
+    offers_repo = OffersRepository(db)
+    new_cleaning = CleaningCreate(
+        name="Cleaning with offers", description="desc for cleaning", price=9.99, cleaning_type="full_clean"
+    )
+    created_cleaning = await cleaning_repo.create_cleaning(new_cleaning=new_cleaning, requesting_user=test_user2)
+    offers = []
+    for user in test_user_list:
+        offers.append(
+            await offers_repo.create_offer_for_cleaning(
+                new_offer=OfferCreate(cleaning_id=created_cleaning.id, user_id=user.id)
+            )
+        )
+    await offers_repo.accept_offer(
+        offer=[o for o in offers if o.user_id == test_user3.id][0], offer_update=OfferUpdate(status="accepted")
+    )
+    return created_cleaning
