@@ -1,6 +1,7 @@
 import os
 import warnings
 from typing import List, Callable
+import random
 
 import alembic
 import pytest
@@ -19,6 +20,8 @@ from app.models.cleaning import CleaningInDB, CleaningCreate, CleaningPublic
 from app.models.offer import OfferCreate, OfferUpdate
 from app.models.user import UserInDB, UserCreate, UserPublic
 from app.services import auth_service
+from app.models.evaluation import EvaluationCreate
+from app.db.repositories.evaluations import EvaluationsRepository
 
 
 async def user_fixture_helper(*, db: Database, new_user: UserCreate) -> UserPublic:
@@ -209,3 +212,53 @@ async def test_cleaning_with_accepted_offer(
         offer=[o for o in offers if o.user_id == test_user3.id][0], offer_update=OfferUpdate(status="accepted")
     )
     return created_cleaning
+
+
+async def create_cleaning_with_evaluated_offer_helper(
+        db: Database,
+        owner: UserInDB,
+        cleaner: UserInDB,
+        cleaning_create: CleaningCreate,
+        evaluation_create: EvaluationCreate
+) -> CleaningInDB:
+    cleaning_repo = CleaningsRepository(db)
+    offers_repo = OffersRepository(db)
+    evals_repo = EvaluationsRepository(db)
+
+    created_planning = await cleaning_repo.create_cleaning(new_cleaning=cleaning_create, requesting_user=owner)
+    offer = await offers_repo.create_offer_for_cleaning(
+        new_offer=OfferCreate(cleaning_id=created_planning.id, user_id=cleaner.id)
+    )
+    await offers_repo.accept_offer(offer=offer, offer_update=OfferUpdate(status="accepted"))
+    await evals_repo.create_evaluation_for_cleaner(
+        evaluation_create=evaluation_create, cleaning=created_planning, cleaner=cleaner
+    )
+    return created_planning
+
+
+@pytest.fixture
+async def test_list_of_cleanings_with_evaluated_offer(
+        db: Database, test_user2: UserInDB, test_user3: UserInDB,
+) -> List[CleaningInDB]:
+    return [
+        await create_cleaning_with_evaluated_offer_helper(
+            db=db,
+            owner=test_user2,
+            cleaner=test_user3,
+            cleaning_create=CleaningCreate(
+                name=f"test cleaning - {i}",
+                description=f"test description -i {i}",
+                price=float(f"{i}9.99"),
+                cleaning_type="full_clean",
+            ),
+            evaluation_create=EvaluationCreate(
+                professionalism=random.randint(0, 5),
+                completeness=random.randint(0, 5),
+                efficiency=random.randint(0, 5),
+                overall_rating=random.randint(0, 5),
+                headline=f"test headline - {i}",
+                comment=f"test comment - {i}",
+            ),
+        )
+        for i in range(5)
+    ]
