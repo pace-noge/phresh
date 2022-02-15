@@ -9,6 +9,7 @@ import {
     EuiHeaderSectionItemButton,
     EuiAvatar
 } from "@elastic/eui"
+import { Link } from "react-router-dom"
 import loginIcon from "../../assets/img/loginIcon.svg"
 import styled from "styled-components"
 
@@ -22,7 +23,7 @@ export default function Navbar({ user, ...props }) {
             <EuiHeaderSection>
                 <EuiHeaderSectionItem border="right">
                     <LogoSection href="/">
-                        <EuiIcon type="cloudDrizzle" color="#1E90FF" size="1" /> Phresh
+                        <EuiIcon type="cloudDrizzle" color="#1E90FF" size="l" /> Phresh
                     </LogoSection>
                 </EuiHeaderSectionItem>
                 <EuiHeaderSectionItem border="right">
@@ -48,7 +49,9 @@ export default function Navbar({ user, ...props }) {
                 {user?.profile ? (
                     <EuiAvatar size="l" name={user.profile.full_name} imageUrl={user.profile.image} />
                 ) : (
-                    <EuiAvatar size="l" color="#1E90FF" name="user" imageUrl={loginIcon} />
+                    <Link to="/login">
+                        <EuiAvatar size="l" color="#1E90FF" name="user" imageUrl={loginIcon} />
+                    </Link>
                 )}
                 </EuiHeaderSectionItemButton>
             </EuiHeaderSection>
