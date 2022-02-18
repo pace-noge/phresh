@@ -6,7 +6,8 @@ import {
   LoginPage,
   ProfilePage,
   RegistrationPage,
-  NotfoundPage
+  NotfoundPage,
+  ProtectedRoute
 } from "../../components/"
 
 export default function App() {
@@ -16,7 +17,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile" element={<ProtectedRoute component={ProfilePage} />} />
           <Route path="/registration" element={<RegistrationPage />} />
           <Route path="*" element={<NotfoundPage />} />
         </Routes>

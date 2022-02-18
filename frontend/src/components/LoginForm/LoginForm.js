@@ -1,4 +1,6 @@
 import React from "react"
+import { connect } from "react-redux"
+import { Actions as authActions, FETCHING_USER_FROM_TOKEN_SUCCESS } from "../../redux/auth"
 import {
     EuiButton,
     EuiFieldText,
@@ -7,7 +9,7 @@ import {
     EuiFieldPassword,
     EuiSpacer
 } from "@elastic/eui"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import validation from "../../utils/validation"
 import styled from "styled-components"
 
@@ -18,10 +20,8 @@ const NeedAccountLink = styled.span`
     font-size: 0.8rem;
 `
 
-export default function LoginForm({
-    requestUserLogin = async ({email, password}) => 
-        console.log(`Logging in with ${email} and ${password}.`)
-}) {
+function LoginForm({ user, authError, isLoading, isAuthenticated, requestUserLogin }) {
+    const [hasSubmitted, setHasSubmitted] = React.useState(false)
     const [form, setForm] = React.useState({
         email: "",
         password: ""
@@ -39,6 +39,14 @@ export default function LoginForm({
         setForm((form) => ({ ...form, [label]: value}))
     }
 
+    const navigate = useNavigate()
+
+    React.useEffect(() => {
+        if (user?.email && isAuthenticated) {
+            navigate("/profile")
+        }
+    }, [user, navigate, isAuthenticated])
+
     const handleSubmit = async (e) => {
         e.preventDefault()
 
@@ -49,7 +57,24 @@ export default function LoginForm({
             return
         }
 
-        await requestUserLogin({ email: form.email, password: form.password})
+        setHasSubmitted(true)
+        const action = await requestUserLogin({ email: form.email, password: form.password })
+        if (action?.type !== FETCHING_USER_FROM_TOKEN_SUCCESS) {
+            setForm(form => ({...form, password: ""}))
+        }
+
+    }
+
+    const getFormErrors = () => {
+        const formErrors = []
+        if (authError && hasSubmitted) {
+            formErrors.push("Invalid credentials. Please try again.")
+        }
+
+        if (errors.form) {
+            formErrors.push(errors.form)
+        }
+        return formErrors
     }
 
     return (
@@ -58,7 +83,7 @@ export default function LoginForm({
                 component="form"
                 onSubmit={handleSubmit}
                 isInvalid={Boolean(errors.form)}
-                error={errors.form}
+                error={getFormErrors()}
             >
                 <EuiFormRow 
                     label="Email" 
@@ -94,7 +119,7 @@ export default function LoginForm({
 
                 <EuiSpacer />
 
-                <EuiButton type="submit" fill>Submit</EuiButton>
+                <EuiButton type="submit" fill isLoadin={isLoading}>Submit</EuiButton>
 
             </EuiForm>
             <EuiSpacer size="xl" />
@@ -105,3 +130,16 @@ export default function LoginForm({
         </LoginFromWrapper>
     )
 }
+
+const mapStateToProps = (state) => ({
+    authError: state.auth.error,
+    isLoading: state.auth.isLoading,
+    isAuthenticated: state.auth.isAuthenticated,
+    user: state.auth.user
+})
+
+const mapDispatchToProps = (dispatch) => ({
+    requestUserLogin: ({email, password}) => dispatch(authActions.requestUserLogin({ email, password }))
+})
+
+export default connect(mapStateToProps, mapDispatchToProps)(LoginForm)

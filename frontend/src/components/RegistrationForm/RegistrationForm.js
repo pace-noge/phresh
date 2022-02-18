@@ -1,4 +1,7 @@
 import React from "react"
+import { connect } from "react-redux"
+import { Actions as authActions, FETCHING_USER_FROM_TOKEN_SUCCESS } from "../../redux/auth"
+import { useNavigate } from "react-router-dom";
 import {
     EuiButton,
     EuiCheckbox,
@@ -21,10 +24,7 @@ const NeedAccountLink = styled.span`
 `
 
 
-export default function RegistrationForm({
-    registerUser = async ({username, email, password}) =>
-        console.log(`Signing up with ${username}, ${email}, and ${password}`)
-}) {
+function RegistrationForm({ authError, user, isLoading, isAuthenticated, registerUser }) {
     const [form, setForm] = React.useState({
         username: "",
         email: "",
@@ -33,6 +33,13 @@ export default function RegistrationForm({
     })
     const [agreedToTerms, setAgreedToTerms] = React.useState(false)
     const [errors, setErrors] = React.useState({})
+    const navigate = useNavigate()
+
+    React.useEffect(() => {
+        if (user?.email && isAuthenticated) {
+            navigate("/profile")
+        }
+    }, [user, navigate, isAuthenticated])
 
     const validateInput = (label, value) => {
         const isValid = validation?.[label] ? validation?.[label]?.(value): true
@@ -75,7 +82,15 @@ export default function RegistrationForm({
             return
         }
 
-        await registerUser({username: form.username, email: form.email, password: form.password})
+        const action = await registerUser({
+            username: form.username,
+            email: form.email,
+            password: form.password
+        })
+
+        if (action?.type !== FETCHING_USER_FROM_TOKEN_SUCCESS ) {
+            setForm((form) => ({ ...form, password: "", passwordConfirm: ""}))
+        }
     }
 
     return (
@@ -159,7 +174,7 @@ export default function RegistrationForm({
                     onChange={(e) => setAgreedToTermCheckbox(e)}
                 />
                 <EuiSpacer />
-                <EuiButton type="submit" fill>
+                <EuiButton type="submit" isLoading={isLoading} fill>
                     Sign Up
                 </EuiButton>
 
@@ -173,3 +188,15 @@ export default function RegistrationForm({
         </RegistrationFormWrapper>
     )
 }
+
+export default connect(
+    (state) => ({
+        authError: state.auth.error,
+        isLoading: state.auth.isLoading,
+        isAuthenticated: state.auth.isAuthenticated,
+        user: state.auth.user
+    }),
+    {
+        registerUser: authActions.registerNewUser
+    }
+)(RegistrationForm)
